@@ -1,2 +1,2 @@
 web: python main.py
-service: python target_service.py
+worker: python telegram_bot.py

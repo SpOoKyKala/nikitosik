@@ -8,6 +8,11 @@ app = FastAPI()
 is_running = True
 
 
+@app.get("/")
+def root():
+    return {"status": "running"}
+
+
 @app.get("/health")
 def health():
     global is_running
