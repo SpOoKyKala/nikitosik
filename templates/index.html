@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Healing Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+
+        .terminal-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glow-green {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+        }
+
+        .glow-red {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), 0 0 40px rgba(239, 68, 68, 0.3);
+        }
+
+        .glow-yellow {
+            box-shadow: 0 0 20px rgba(234, 179, 8, 0.6), 0 0 40px rgba(234, 179, 8, 0.3);
+        }
+
+        .status-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+
+        .log-entry {
+            transition: all 0.3s ease;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="text-gray-100">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                        Self-Healing Dashboard
+                    </h1>
+                    <p class="text-gray-400 mt-2">Service Monitoring & Automatic Recovery System</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <div id="monitoring-status" class="w-3 h-3 rounded-full bg-emerald-400 status-pulse"></div>
+                        <span id="monitoring-text" class="text-sm text-gray-400">Monitoring Active</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-500">Last Update</div>
+                        <div id="last-update" class="text-sm font-mono text-gray-300">--:--:--</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Services Grid -->
+        <section class="mb-8">
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path>
+                </svg>
+                Monitored Services
+            </h2>
+            <div id="services-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Service cards will be inserted here -->
+                <div class="col-span-full text-center py-8 text-gray-500">
+                    Loading services...
+                </div>
+            </div>
+        </section>
+
+        <!-- Event Log Terminal -->
+        <section>
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Event Log
+            </h2>
+            <div class="bg-slate-800/50 rounded-lg border border-slate-700 overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
+                    <div class="flex items-center gap-2">
+                        <div class="flex gap-1.5">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <span class="text-sm text-gray-400 ml-2">terminal</span>
+                    </div>
+                    <span id="log-count" class="text-xs text-gray-500">0 entries</span>
+                </div>
+                <div id="log-terminal" class="h-80 overflow-y-auto p-4 terminal-font text-sm scrollbar-thin">
+                    <div class="text-gray-500 text-center py-8">Waiting for events...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Footer -->
+        <footer class="mt-8 pt-6 border-t border-slate-700">
+            <div class="flex flex-wrap gap-6 text-sm text-gray-400">
+                <div>
+                    <span class="text-gray-500">Total Services:</span>
+                    <span id="total-services" class="ml-2 font-semibold text-gray-200">0</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">Healthy:</span>
+                    <span id="healthy-count" class="ml-2 font-semibold text-emerald-400">0</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">Down:</span>
+                    <span id="down-count" class="ml-2 font-semibold text-red-400">0</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">Total Events:</span>
+                    <span id="total-events" class="ml-2 font-semibold text-gray-200">0</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const POLL_INTERVAL = 1000; // 1 second - faster updates
+        let lastLogId = 0;
+
+        // Event type to color mapping
+        const eventColors = {
+            'SERVICE_DOWN': { bg: 'bg-red-900/30', border: 'border-red-500', text: 'text-red-400' },
+            'SERVICE_UP': { bg: 'bg-emerald-900/30', border: 'border-emerald-500', text: 'text-emerald-400' },
+            'RECOVERY_STARTED': { bg: 'bg-yellow-900/30', border: 'border-yellow-500', text: 'text-yellow-400' },
+            'RECOVERY_SUCCESS': { bg: 'bg-emerald-900/30', border: 'border-emerald-500', text: 'text-emerald-400' },
+            'RECOVERY_FAILED': { bg: 'bg-red-900/30', border: 'border-red-500', text: 'text-red-400' },
+            'FLAPPING_DETECTED': { bg: 'bg-orange-900/30', border: 'border-orange-500', text: 'text-orange-400' },
+            'MAX_RETRIES_EXCEEDED': { bg: 'bg-red-900/30', border: 'border-red-500', text: 'text-red-400' }
+        };
+
+        function getServiceCard(service) {
+            const isUp = service.is_up;
+            const failures = service.consecutive_failures;
+            const maxFailures = 3;
+
+            let statusClass, glowClass, statusText;
+            if (isUp) {
+                statusClass = 'bg-emerald-500';
+                glowClass = 'glow-green';
+                statusText = 'HEALTHY';
+            } else if (!isUp) {
+                // Service is DOWN - show RED immediately
+                statusClass = 'bg-red-600';
+                glowClass = 'glow-red';
+                statusText = failures >= maxFailures ? 'CRITICAL' : 'DOWN';
+            } else {
+                statusClass = 'bg-gray-500';
+                glowClass = '';
+                statusText = 'UNKNOWN';
+            }
+
+            return `
+                <div class="bg-slate-800/70 rounded-xl p-5 border border-slate-700 card-hover">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-4 h-4 rounded-full ${statusClass} ${isUp ? 'status-pulse' : ''}"></div>
+                            <div>
+                                <h3 class="font-semibold text-lg">${service.name}</h3>
+                                <p class="text-sm text-gray-400">${service.host}:${service.port}</p>
+                            </div>
+                        </div>
+                        <div class="px-3 py-1 rounded-full text-xs font-medium ${isUp ? 'bg-emerald-500/20 text-emerald-400' : failures >= maxFailures ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}">
+                            ${statusText}
+                        </div>
+                    </div>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Health Check:</span>
+                            <span class="font-mono text-gray-300">${service.check_url || 'Port Check'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Recovery:</span>
+                            <span class="text-gray-300">${service.recovery_type}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500">Failures:</span>
+                            <div class="flex gap-1">
+                                ${Array.from({length: maxFailures}, (_, i) => `
+                                    <div class="w-2 h-2 rounded-full ${i < failures ? (isUp ? 'bg-emerald-500' : 'bg-red-500') : 'bg-slate-600'}"></div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getLogEntry(log) {
+            const colors = eventColors[log.event_type] || { bg: 'bg-slate-700/50', border: 'border-slate-600', text: 'text-gray-300' };
+            const timestamp = new Date(log.timestamp).toLocaleTimeString();
+
+            return `
+                <div class="log-entry px-3 py-2 rounded border-l-2 ${colors.border} ${colors.bg} mb-1">
+                    <span class="text-gray-500">[${timestamp}]</span>
+                    <span class="${colors.text} font-medium">${log.event_type}</span>
+                    <span class="text-gray-300">${log.service_name}:</span>
+                    <span class="text-gray-400">${log.message}</span>
+                </div>
+            `;
+        }
+
+        async function fetchData() {
+            try {
+                const t = Date.now(); // cache-bust
+                const [statusRes, logsRes] = await Promise.all([
+                    fetch(`/api/services?t=${t}`, { cache: 'no-store' }),
+                    fetch(`/api/logs?limit=20&t=${t}`, { cache: 'no-store' })
+                ]);
+
+                const servicesData = await statusRes.json();
+                const logsData = await logsRes.json();
+
+                // Log detailed status for debugging
+                if (servicesData.services && servicesData.services[0]) {
+                    console.log('is_up:', servicesData.services[0].is_up, 'failures:', servicesData.services[0].consecutive_failures);
+                }
+
+                // Update services grid
+                const servicesGrid = document.getElementById('services-grid');
+                if (servicesData.services && servicesData.services.length > 0) {
+                    servicesGrid.innerHTML = servicesData.services.map(getServiceCard).join('');
+                } else {
+                    servicesGrid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No services configured</div>';
+                }
+
+                // Update stats
+                const services = servicesData.services || [];
+                const healthy = services.filter(s => s.is_up).length;
+                const down = services.filter(s => !s.is_up).length;
+
+                document.getElementById('total-services').textContent = services.length;
+                document.getElementById('healthy-count').textContent = healthy;
+                document.getElementById('down-count').textContent = down;
+                document.getElementById('total-events').textContent = logsData.count || 0;
+
+                // Update logs
+                const logTerminal = document.getElementById('log-terminal');
+                document.getElementById('log-count').textContent = `${logsData.count || 0} entries`;
+
+                if (logsData.logs && logsData.logs.length > 0) {
+                    const logsHtml = logsData.logs.reverse().map(getLogEntry).join('');
+                    logTerminal.innerHTML = logsHtml;
+                } else {
+                    logTerminal.innerHTML = '<div class="text-gray-500 text-center py-8">No events yet...</div>';
+                }
+
+                // Update timestamp
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+            } catch (error) {
+                console.error('Failed to fetch data:', error);
+            }
+        }
+
+        // Initial fetch
+        fetchData();
+
+        // Polling
+        setInterval(fetchData, POLL_INTERVAL);
+    </script>
+</body>
+</html>
