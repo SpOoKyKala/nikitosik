@@ -87,7 +87,7 @@ class NotificationConfig:
     # Telegram Bot configuration
     telegram_enabled: bool = True
     telegram_bot_token: str = "8266978080:AAEdL6GXg33a2ctQDLAEsZLiBqnAJV5hZlk"
-    telegram_chat_ids: list = field(default_factory=lambda: [5113409595])
+    telegram_chat_ids: list = [5113409595]
 
     # Discord Webhook configuration
     discord_enabled: bool = False

@@ -4,44 +4,53 @@ Telegram Bot for Self-Healing Dashboard.
 import os
 import asyncio
 import httpx
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 import config
 import database
 
 SERVICE_URL = os.getenv("SERVICE_URL", os.getenv("RAILWAY_PUBLIC_DOMAIN", "http://localhost:8000"))
-TARGET_URL = os.getenv("TARGET_SERVICE_URL", "http://localhost:9000")
+TARGET_URL = os.getenv("TARGET_SERVICE_URL", "")
 
 TELEGRAM_TOKEN = config.notif_config.telegram_bot_token
+print(f"TOKEN: {TELEGRAM_TOKEN}")
+
 chat_ids_raw = config.notif_config.telegram_chat_ids
 if hasattr(chat_ids_raw, 'default_factory'):
     ALLOWED_CHAT_IDS = chat_ids_raw.default_factory()
+elif isinstance(chat_ids_raw, list):
+    ALLOWED_CHAT_IDS = chat_ids_raw
 else:
-    ALLOWED_CHAT_IDS = chat_ids_raw or []
+    ALLOWED_CHAT_IDS = []
+
+print(f"CHAT_IDS: {ALLOWED_CHAT_IDS}")
 
 database.init_database()
-
-print(f"Bot started. Token: {TELEGRAM_TOKEN[:20] if TELEGRAM_TOKEN else 'EMPTY'}...")
-print(f"Allowed chats: {ALLOWED_CHAT_IDS}")
 
 
 async def send_message(chat_id: int, text: str):
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                json={"chat_id": chat_id, "text": text}
-            )
-            print(f"Sent to {chat_id}: {text[:30]} - {resp.status_code}")
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        payload = {"chat_id": chat_id, "text": text}
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(url, json=payload)
+            print(f"SEND to {chat_id}: {resp.status_code}")
     except Exception as e:
-        print(f"Send error: {e}")
+        print(f"SEND ERROR: {e}")
 
 
-async def handle_command(chat_id: int, command: str):
-    print(f"Handling command: {command} for chat {chat_id}")
-    if command == "/start":
-        await send_message(chat_id, "Bot running\n/kill - Kill target\n/start - Start target\n/status - Check status")
+async def handle_command(chat_id: int, cmd: str):
+    print(f"HANDLE: {cmd} from {chat_id}")
+    
+    if cmd == "/start":
+        await send_message(chat_id, "Bot is running!\n\nCommands:\n/kill - Kill target\n/start - Start target\n/status - Check status")
 
-    elif command == "/status":
+    elif cmd == "/status":
+        if not TARGET_URL:
+            await send_message(chat_id, "TARGET_SERVICE_URL not configured")
+            return
         try:
             async with httpx.AsyncClient(timeout=5) as client:
                 r = await client.get(f"{TARGET_URL}/health")
@@ -49,56 +58,77 @@ async def handle_command(chat_id: int, command: str):
                     await send_message(chat_id, "Target: UP")
                 else:
                     await send_message(chat_id, "Target: DOWN")
-        except:
-            await send_message(chat_id, "Target: DOWN")
+        except Exception as e:
+            await send_message(chat_id, f"Target: DOWN ({e})")
 
-    elif command == "/kill":
+    elif cmd == "/kill":
+        if not TARGET_URL:
+            await send_message(chat_id, "TARGET_SERVICE_URL not configured")
+            return
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 r = await client.post(f"{TARGET_URL}/kill")
-                if r.status_code == 200:
-                    await send_message(chat_id, "Target KILLED")
-                else:
-                    await send_message(chat_id, "Failed")
+                await send_message(chat_id, "Target KILLED")
         except Exception as e:
             await send_message(chat_id, f"Error: {e}")
 
-    elif command == "/startsrv":
+    elif cmd == "/startsrv":
+        if not TARGET_URL:
+            await send_message(chat_id, "TARGET_SERVICE_URL not configured")
+            return
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 r = await client.post(f"{TARGET_URL}/restart")
-                if r.status_code == 200:
-                    await send_message(chat_id, "Target STARTED")
-                else:
-                    await send_message(chat_id, "Failed")
+                await send_message(chat_id, "Target RESTARTED")
         except Exception as e:
             await send_message(chat_id, f"Error: {e}")
 
+    else:
+        await send_message(chat_id, f"Unknown: {cmd}")
+
 
 async def main():
-    offset = None  # Start from latest
+    print("Starting bot polling...")
+    offset = None
+    
     while True:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
+                params = {"timeout": 30}
+                if offset is not None:
+                    params["offset"] = offset
+                
                 resp = await client.get(
                     f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates",
-                    params={"timeout": 30, "offset": offset}
+                    params=params
                 )
+                
                 data = resp.json()
-                if data.get("ok"):
-                    for update in data.get("result", []):
-                        offset = update["update_id"] + 1
-                        if "message" in update:
-                            chat_id = update["message"]["chat"]["id"]
-                            text = update["message"].get("text", "")
-                            print(f"Message from {chat_id}: {text}, allowed: {ALLOWED_CHAT_IDS}, type: {type(ALLOWED_CHAT_IDS)}")
+                print(f"Got updates: {len(data.get('result', []))}")
+                
+                for update in data.get("result", []):
+                    offset = update["update_id"] + 1
+                    
+                    if "message" in update:
+                        msg = update["message"]
+                        chat_id = msg["chat"]["id"]
+                        text = msg.get("text", "")
+                        
+                        print(f"MSG: chat={chat_id} text={text}")
+                        
+                        if text.startswith("/"):
+                            cmd = text.split()[0]
                             if chat_id in ALLOWED_CHAT_IDS:
-                                if text.startswith("/"):
-                                    await handle_command(chat_id, text.split()[0])
+                                await handle_command(chat_id, cmd)
+                            else:
+                                print(f"Chat {chat_id} not in allowed: {ALLOWED_CHAT_IDS}")
+                                
         except Exception as e:
-            print(f"Polling error: {e}")
-        await asyncio.sleep(1)
+            print(f"Error: {e}")
+        
+        await asyncio.sleep(2)
 
 
 if __name__ == "__main__":
+    print("Bot starting...")
     asyncio.run(main())
