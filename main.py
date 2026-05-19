@@ -132,15 +132,45 @@ async def health_check():
     }
 
 
+# Internal service for demo - can be killed/restarted
+_internal_service_up = True
+
+
+@app.get("/internal/health")
+async def internal_health():
+    global _internal_service_up
+    if not _internal_service_up:
+        return {"status": "error", "service": "internal"}, 503
+    return {"status": "healthy", "service": "internal"}
+
+
+@app.post("/internal/kill")
+async def internal_kill():
+    global _internal_service_up
+    _internal_service_up = False
+    return {"status": "killed"}
+
+
+@app.post("/internal/start")
+async def internal_start():
+    global _internal_service_up
+    _internal_service_up = True
+    return {"status": "started"}
+
+
 if __name__ == "__main__":
     import uvicorn
+    import os
 
-    notifier.logger.info(f"Starting server on {config.settings.host}:{config.settings.port}")
+    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+
+    notifier.logger.info(f"Starting server on {host}:{port}")
 
     uvicorn.run(
         "main:app",
-        host=config.settings.host,
-        port=config.settings.port,
+        host=host,
+        port=port,
         reload=False,
         log_level="info"
     )

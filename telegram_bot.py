@@ -10,6 +10,8 @@ import httpx
 import config
 import database
 
+# Get the service URL
+SERVICE_URL = os.getenv("SERVICE_URL", "http://localhost:8000")
 TELEGRAM_TOKEN = config.notif_config.telegram_bot_token
 chat_ids_raw = config.notif_config.telegram_chat_ids
 if hasattr(chat_ids_raw, 'default_factory'):
@@ -33,33 +35,40 @@ async def send_message(chat_id: int, text: str):
 
 async def handle_command(chat_id: int, command: str):
     if command == "/start":
-        await send_message(chat_id, "Bot running. Commands: /status /kill /logs")
+        await send_message(chat_id, "Bot running. Commands:\n/kill - Kill service\n/start - Start service\n/status - Show status")
 
     elif command == "/status":
-        status = database.get_service_status("mock_api")
-        if status:
-            is_up = "UP" if status["is_up"] else "DOWN"
-            await send_message(chat_id, f"mock_api: {is_up}")
-        else:
-            await send_message(chat_id, "No data")
+        async with httpx.AsyncClient(timeout=5) as client:
+            try:
+                r = await client.get(f"{SERVICE_URL}/internal/health")
+                if r.status_code == 200:
+                    await send_message(chat_id, "Service: UP")
+                else:
+                    await send_message(chat_id, "Service: DOWN")
+            except:
+                await send_message(chat_id, "Service: DOWN")
 
     elif command == "/kill":
-        await send_message(chat_id, "Killing service...")
-        pid = None
-        for conn in psutil.net_connections(kind='inet'):
-            if conn.laddr and conn.laddr.port == 9000 and conn.status == 'LISTEN':
-                pid = conn.pid
-                break
-        if pid:
-            os.kill(pid, signal.SIGTERM)
-            await send_message(chat_id, f"Killed PID {pid}")
-        else:
-            await send_message(chat_id, "Not running")
+        async with httpx.AsyncClient(timeout=10) as client:
+            try:
+                r = await client.post(f"{SERVICE_URL}/internal/kill")
+                if r.status_code == 200:
+                    await send_message(chat_id, "Service KILLED")
+                else:
+                    await send_message(chat_id, "Failed")
+            except Exception as e:
+                await send_message(chat_id, f"Error: {e}")
 
-    elif command == "/logs":
-        logs = database.get_recent_logs(limit=3)
-        text = "\n".join([f"{l['event_type']}: {l['message'][:30]}" for l in logs])
-        await send_message(chat_id, text or "No logs")
+    elif command == "/startsrv":
+        async with httpx.AsyncClient(timeout=10) as client:
+            try:
+                r = await client.post(f"{SERVICE_URL}/internal/start")
+                if r.status_code == 200:
+                    await send_message(chat_id, "Service STARTED")
+                else:
+                    await send_message(chat_id, "Failed")
+            except Exception as e:
+                await send_message(chat_id, f"Error: {e}")
 
 
 async def main():

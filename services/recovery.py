@@ -192,6 +192,31 @@ class ScriptRecoveryDriver(RecoveryDriver):
 
 
 # ==============================================================================
+# API-Based Recovery Driver (for Railway)
+# ==============================================================================
+
+class APIRecoveryDriver(RecoveryDriver):
+    """API-based recovery driver - calls HTTP endpoint to restart service."""
+
+    async def recover(self, service_name: str, service_config: config.ServiceConfig) -> RecoveryResult:
+        """Call restart endpoint via HTTP."""
+        import httpx
+
+        restart_url = service_config.recovery_command
+        if not restart_url:
+            return RecoveryResult(False, "No restart URL configured")
+
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.post(restart_url)
+                if response.status_code in [200, 201]:
+                    return RecoveryResult(True, f"Recovery API called successfully")
+                else:
+                    return RecoveryResult(False, f"Recovery API failed: {response.status_code}")
+        except Exception as e:
+            return RecoveryResult(False, f"Recovery error: {str(e)}")
+
+
 # Process-Based Recovery Driver (Stub)
 # ==============================================================================
 
@@ -223,6 +248,7 @@ class RecoveryManager:
         self.drivers = {
             "script": ScriptRecoveryDriver(),
             "process": ProcessRecoveryDriver(),
+            "api": APIRecoveryDriver(),
         }
 
     async def attempt_recovery(
