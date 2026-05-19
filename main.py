@@ -15,6 +15,71 @@ import config
 import database
 from services import checker, notifier
 
+# Start telegram bot in background
+import os
+import httpx
+
+TELEGRAM_TOKEN = config.notif_config.telegram_bot_token
+ALLOWED_CHAT_IDS = config.notif_config.telegram_chat_ids
+if not isinstance(ALLOWED_CHAT_IDS, list):
+    ALLOWED_CHAT_IDS = [5113409595]
+TARGET_URL = os.getenv("TARGET_SERVICE_URL", "")
+
+
+async def telegram_bot_loop():
+    """Background telegram bot."""
+    print("Starting telegram bot...", flush=True)
+    offset = None
+    
+    async def send_msg(chat_id, text):
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.post(
+                    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                    json={"chat_id": chat_id, "text": text}
+                )
+        except:
+            pass
+    
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                params = {"timeout": 30}
+                if offset: params["offset"] = offset
+                
+                resp = await client.get(
+                    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates",
+                    params=params
+                )
+                
+                for update in resp.json().get("result", []):
+                    offset = update["update_id"] + 1
+                    if "message" in update:
+                        chat_id = update["message"]["chat"]["id"]
+                        text = update["message"].get("text", "")
+                        
+                        if text.startswith("/") and chat_id in ALLOWED_CHAT_IDS:
+                            cmd = text.split()[0]
+                            if cmd == "/start":
+                                await send_msg(chat_id, "Bot OK! /status /kill /startsrv")
+                            elif cmd == "/status":
+                                await send_msg(chat_id, f"Target: {TARGET_URL[:30]}...")
+                            elif cmd == "/kill" and TARGET_URL:
+                                try:
+                                    await client.post(f"{TARGET_URL}/kill")
+                                    await send_msg(chat_id, "KILLED")
+                                except:
+                                    await send_msg(chat_id, "ERR")
+                            elif cmd == "/startsrv" and TARGET_URL:
+                                try:
+                                    await client.post(f"{TARGET_URL}/restart")
+                                    await send_msg(chat_id, "STARTED")
+                                except:
+                                    await send_msg(chat_id, "ERR")
+        except:
+            pass
+        await asyncio.sleep(2)
+
 
 # ==============================================================================
 # Application Lifecycle
@@ -30,6 +95,9 @@ async def lifespan(app: FastAPI):
 
     await checker.start_monitoring()
     notifier.logger.info("Background monitoring started")
+
+    # Start telegram bot in background
+    asyncio.create_task(telegram_bot_loop())
 
     yield
 
