@@ -72,7 +72,7 @@ async def handle_command(chat_id: int, command: str):
 
 
 async def main():
-    offset = 0
+    offset = None  # Start from latest
     while True:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
