@@ -20,6 +20,9 @@ else:
 
 database.init_database()
 
+print(f"Bot started. Token: {TELEGRAM_TOKEN[:20] if TELEGRAM_TOKEN else 'EMPTY'}...")
+print(f"Allowed chats: {ALLOWED_CHAT_IDS}")
+
 
 async def send_message(chat_id: int, text: str):
     try:
@@ -34,6 +37,7 @@ async def send_message(chat_id: int, text: str):
 
 
 async def handle_command(chat_id: int, command: str):
+    print(f"Handling command: {command} for chat {chat_id}")
     if command == "/start":
         await send_message(chat_id, "Bot running\n/kill - Kill target\n/start - Start target\n/status - Check status")
 
@@ -87,7 +91,7 @@ async def main():
                         if "message" in update:
                             chat_id = update["message"]["chat"]["id"]
                             text = update["message"].get("text", "")
-                            print(f"Message from {chat_id}: {text}")
+                            print(f"Message from {chat_id}: {text}, allowed: {ALLOWED_CHAT_IDS}, type: {type(ALLOWED_CHAT_IDS)}")
                             if chat_id in ALLOWED_CHAT_IDS:
                                 if text.startswith("/"):
                                     await handle_command(chat_id, text.split()[0])
