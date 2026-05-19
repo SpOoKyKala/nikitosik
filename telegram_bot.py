@@ -24,12 +24,13 @@ database.init_database()
 async def send_message(chat_id: int, text: str):
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(
+            resp = await client.post(
                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
                 json={"chat_id": chat_id, "text": text}
             )
-    except:
-        pass
+            print(f"Sent to {chat_id}: {text[:30]} - {resp.status_code}")
+    except Exception as e:
+        print(f"Send error: {e}")
 
 
 async def handle_command(chat_id: int, command: str):
@@ -85,12 +86,13 @@ async def main():
                         offset = update["update_id"] + 1
                         if "message" in update:
                             chat_id = update["message"]["chat"]["id"]
+                            text = update["message"].get("text", "")
+                            print(f"Message from {chat_id}: {text}")
                             if chat_id in ALLOWED_CHAT_IDS:
-                                text = update["message"].get("text", "")
                                 if text.startswith("/"):
                                     await handle_command(chat_id, text.split()[0])
-        except:
-            pass
+        except Exception as e:
+            print(f"Polling error: {e}")
         await asyncio.sleep(1)
 
 
