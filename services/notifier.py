@@ -172,31 +172,31 @@ async def notify_service_down(service_name: str, details: Optional[str] = None):
     status = _last_notified_state.get(service_name)
     if status != "down":
         _last_notified_state[service_name] = "down"
-        await notification_manager.notify(EventType.SERVICE_DOWN, service_name, f"Service '{service_name}' is DOWN", details)
+        await notification_manager.notify(EventType.SERVICE_DOWN, service_name, f"Service DOWN", details)
 
 
 async def notify_service_up(service_name: str, details: Optional[str] = None):
     status = _last_notified_state.get(service_name)
     if status != "up":
         _last_notified_state[service_name] = "up"
-        await notification_manager.notify(EventType.SERVICE_UP, service_name, f"Service '{service_name}' is UP", details)
+        await notification_manager.notify(EventType.SERVICE_UP, service_name, f"Service UP", details)
 
 
 async def notify_recovery_started(service_name: str, attempt: int, details: Optional[str] = None):
-    await notification_manager.notify(EventType.RECOVERY_STARTED, service_name, f"Recovery attempt #{attempt}", details)
+    pass  # Disabled to prevent spam
 
 
 async def notify_recovery_success(service_name: str, details: Optional[str] = None):
-    await notification_manager.notify(EventType.RECOVERY_SUCCESS, service_name, f"Service '{service_name}' recovered", details)
+    pass  # Disabled to prevent spam
 
 
 async def notify_recovery_failed(service_name: str, attempt: int, error: str):
-    await notification_manager.notify(EventType.RECOVERY_FAILED, service_name, f"Recovery attempt #{attempt} failed", error)
+    pass  # Disabled to prevent spam
 
 
 async def notify_flapping_detected(service_name: str, attempts: int):
-    await notification_manager.notify(EventType.FLAPPING_DETECTED, service_name, f"Service '{service_name}' is flapping - {attempts} failures")
+    pass  # Disabled to prevent spam
 
 
 async def notify_max_retries_exceeded(service_name: str, total_attempts: int):
-    await notification_manager.notify(EventType.MAX_RETRIES_EXCEEDED, service_name, f"MAX RETRIES exceeded for '{service_name}'", f"Attempts: {total_attempts}")
+    pass  # Disabled to prevent spam
