@@ -57,20 +57,17 @@ class ServiceConfig:
 
 # List of services to monitor
 # Each service can have its own recovery mechanism
-# Detect if running on Railway
-is_railway = os.getenv("RAILWAY_ENVIRONMENT") is not None
-
-# Get service URL for monitoring - use self URL for Railway
-service_url = os.getenv("SERVICE_URL", os.getenv("RAILWAY_PUBLIC_DOMAIN", "http://localhost:8000"))
+# Target service URL - set via environment variable
+target_url = os.getenv("TARGET_SERVICE_URL", "http://localhost:9000")
 
 SERVICES: Dict[str, ServiceConfig] = {
     "target_service": ServiceConfig(
         name="target_service",
         host="localhost",
-        port=8000,
-        check_url=f"{service_url}/internal/health",
+        port=9000,
+        check_url=f"{target_url}/health",
         recovery_type="api",
-        recovery_command=f"{service_url}/internal/start",
+        recovery_command=f"{target_url}/restart",
         enabled=True
     ),
 }
