@@ -8,8 +8,6 @@ from typing import Optional
 
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,20 +23,16 @@ from services import checker, notifier
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler - startup and shutdown."""
-    # Startup
     notifier.logger.info("Starting Self-Healing Dashboard...")
 
-    # Initialize database
     database.init_database()
     notifier.logger.info(f"Database initialized: {config.settings.db_path}")
 
-    # Start background monitoring
     await checker.start_monitoring()
     notifier.logger.info("Background monitoring started")
 
     yield
 
-    # Shutdown
     notifier.logger.info("Shutting down...")
     checker.stop_monitoring()
     database.db.close()
@@ -56,7 +50,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -72,20 +65,17 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    """Serve the main dashboard HTML."""
     with open("templates/index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 
 @app.get("/api/status")
 async def get_status():
-    """Get current status of all monitored services."""
     return database.get_dashboard_data()
 
 
 @app.get("/api/services")
 async def get_services():
-    """Get list of configured services and their current status."""
     services_data = []
     for name, svc_config in config.SERVICES.items():
         status = database.get_service_status(name)
@@ -107,21 +97,18 @@ async def get_logs(
     limit: int = Query(default=20, ge=1, le=100),
     service: Optional[str] = None
 ):
-    """Get recent event logs."""
     logs = database.get_recent_logs(limit=limit, service_name=service)
     return {"logs": logs, "count": len(logs)}
 
 
 @app.get("/api/recovery/history/{service_name}")
 async def get_recovery_history(service_name: str, limit: int = Query(default=10, ge=1, le=50)):
-    """Get recovery attempt history for a service."""
     history = database.get_recovery_history(service_name, limit=limit)
     return {"service": service_name, "history": history}
 
 
 @app.post("/api/monitor/start")
 async def start_monitor():
-    """Manually start the monitoring loop."""
     if not checker.service_checker.running:
         await checker.start_monitoring()
         return {"status": "started", "message": "Monitoring started"}
@@ -130,30 +117,20 @@ async def start_monitor():
 
 @app.post("/api/monitor/stop")
 async def stop_monitor():
-    """Manually stop the monitoring loop."""
     if checker.service_checker.running:
         checker.stop_monitoring()
         return {"status": "stopped", "message": "Monitoring stopped"}
     return {"status": "stopped", "message": "Monitoring not running"}
 
 
-# ==============================================================================
-# Health Check Endpoint
-# ==============================================================================
-
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for the dashboard itself."""
     return {
         "status": "healthy",
         "service": "self-healing-dashboard",
         "monitoring_active": checker.service_checker.running
     }
 
-
-# ==============================================================================
-# Run Server
-# ==============================================================================
 
 if __name__ == "__main__":
     import uvicorn
