@@ -1,16 +1,6 @@
-build:
-  target: python
-
-deploy:
-  numReplicas: 2
-
-services:
-  web:
-    build: .
-    run: python main.py
-    ports:
-      - 8000
-    
-  telegram:
-    build: .
-    run: python telegram_bot.py
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "deploy": {
+    "startCommand": "python telegram_bot.py"
+  }
+}
